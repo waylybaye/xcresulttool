@@ -1183,6 +1183,7 @@ const formatter_1 = __nccwpck_require__(7556);
 const action_1 = __nccwpck_require__(1231);
 const glob_1 = __nccwpck_require__(1957);
 const fs_1 = __nccwpck_require__(7147);
+const xcode_1 = __nccwpck_require__(3339);
 const { stat } = fs_1.promises;
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -1308,11 +1309,15 @@ function run() {
 run();
 function mergeResultBundle(inputPaths, outputPath) {
     return __awaiter(this, void 0, void 0, function* () {
+        const xcodeVersion = yield (0, xcode_1.getXcodeVersion)();
         const args = ['xcresulttool', 'merge']
             .concat(inputPaths)
             .concat(['--output-path', outputPath]);
+        if (xcodeVersion >= 16) {
+            args.push('--legacy');
+        }
         const options = {
-            silent: true
+            silent: false
         };
         yield exec.exec('xcrun', args, options);
     });
@@ -1391,6 +1396,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Parser = void 0;
 const exec = __importStar(__nccwpck_require__(1514));
 const fs_1 = __nccwpck_require__(7147);
+const xcode_1 = __nccwpck_require__(3339);
 const { readFile } = fs_1.promises;
 class Parser {
     constructor(bundlePath) {
@@ -1404,6 +1410,7 @@ class Parser {
     }
     exportObject(reference, outputPath) {
         return __awaiter(this, void 0, void 0, function* () {
+            const xcodeVersion = yield (0, xcode_1.getXcodeVersion)();
             const args = [
                 'xcresulttool',
                 'export',
@@ -1416,6 +1423,9 @@ class Parser {
                 '--id',
                 reference
             ];
+            if (xcodeVersion >= 16) {
+                args.push('--legacy');
+            }
             const options = {
                 silent: true
             };
@@ -1441,6 +1451,7 @@ class Parser {
     }
     toJSON(reference) {
         return __awaiter(this, void 0, void 0, function* () {
+            const xcodeVersion = yield (0, xcode_1.getXcodeVersion)();
             const args = [
                 'xcresulttool',
                 'get',
@@ -1452,6 +1463,9 @@ class Parser {
             if (reference) {
                 args.push('--id');
                 args.push(reference);
+            }
+            if (xcodeVersion >= 16) {
+                args.push('--legacy');
             }
             let output = '';
             const options = {
@@ -1889,6 +1903,69 @@ class BuildLog {
     }
 }
 exports.BuildLog = BuildLog;
+
+
+/***/ }),
+
+/***/ 3339:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getXcodeVersion = void 0;
+const exec = __importStar(__nccwpck_require__(1514));
+function getXcodeVersion() {
+    return __awaiter(this, void 0, void 0, function* () {
+        let output = '';
+        const options = {
+            listeners: {
+                stdout: (data) => {
+                    output += data.toString();
+                }
+            }
+        };
+        yield exec.exec('xcodebuild', ['-version'], options);
+        const match = output.match(/Xcode (\d+)/);
+        if (match) {
+            return parseInt(match[1], 10);
+        }
+        throw new Error('Unable to determine Xcode version');
+    });
+}
+exports.getXcodeVersion = getXcodeVersion;
 
 
 /***/ }),
@@ -4698,7 +4775,7 @@ class OidcClient {
                 .catch(error => {
                 throw new Error(`Failed to get ID Token. \n 
         Error Code : ${error.statusCode}\n 
-        Error Message: ${error.result.message}`);
+        Error Message: ${error.message}`);
             });
             const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
             if (!id_token) {
